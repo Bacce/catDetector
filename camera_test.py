@@ -4,6 +4,7 @@ import threading
 import time
 import numpy as np
 import cv2
+from ultralytics import YOLO
 
 # Configs
 RTSP_URL = "rtsp://192.168.68.63:554/live/ch00_0"
@@ -118,6 +119,10 @@ class OpenCvRtspStream:
             self._stop_pipeline()
 
 def main():
+    # Load YOLOv8n model (Nano is fastest for real-time RTSP)
+    logger.info("Loading YOLOv8 model...")
+    model = YOLO('yolov8n.pt') 
+
     logger.info("Connecting to %s via OpenCV (RTSP/UDP)...", RTSP_URL)
 
     vs = OpenCvRtspStream(RTSP_URL).start()
@@ -136,7 +141,14 @@ def main():
             frame_count += 1
             if frame_count % 100 == 0:
                 logger.debug("Successfully processed %s frames", frame_count)
-            cv2.imshow('RTSP Stream', frame)
+            
+            # Run YOLO inference filtering only for class 15 (cat)
+            # verbose=False suppresses the console log per frame
+            results = model.predict(frame, classes=[15], verbose=False)[0]
+            
+            # Plot bounding boxes on the frame
+            annotated_frame = results.plot()
+            cv2.imshow('RTSP Stream', annotated_frame)
         elif frame_id == 0 and now - vs.started_at < STARTUP_TIMEOUT:
             pass
         elif now - last_frame_time > STALL_TIMEOUT:
