@@ -4,10 +4,13 @@ import threading
 import time
 import numpy as np
 import cv2
+import datetime
+from pathlib import Path
 from ultralytics import YOLO
 
 # Configs
 RTSP_URL = "rtsp://192.168.68.63:554/live/ch00_0"
+CAT_DETECTION_THRESHOLD = 0.1
 STARTUP_TIMEOUT = 20.0
 STALL_TIMEOUT = 5.0
 
@@ -130,6 +133,11 @@ def main():
     frame_count = 0
     last_frame_time = vs.started_at
     last_frame_id = 0
+    # Capture settings
+    CAPTURES_DIR = Path("captures")
+    CAPTURES_DIR.mkdir(exist_ok=True)
+    cat_detected_start = None
+    image_saved = False
 
     while True:
         ret, frame, frame_id = vs.read()
@@ -143,8 +151,24 @@ def main():
                 logger.debug("Successfully processed %s frames", frame_count)
             
             # Run YOLO inference filtering only for class 15 (cat)
-            # verbose=False suppresses the console log per frame
             results = model.predict(frame, classes=[15], verbose=False)[0]
+            
+            # Handle continuous detection logic
+            if len(results.boxes) > 0:
+                if cat_detected_start is None:
+                    cat_detected_start = time.time()
+                
+                # If cat detected for >= 1 second and image not yet saved for this event
+                if not image_saved and (time.time() - cat_detected_start >= CAT_DETECTION_THRESHOLD):
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = CAPTURES_DIR / f"cat_{timestamp}.jpg"
+                    cv2.imwrite(str(filename), frame)
+                    logger.info("Cat detected for 1s! Image saved to %s", filename)
+                    image_saved = True
+            else:
+                # Reset tracking when no cat is present
+                cat_detected_start = None
+                image_saved = False
             
             # Plot bounding boxes on the frame
             annotated_frame = results.plot()
