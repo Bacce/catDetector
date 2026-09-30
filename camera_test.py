@@ -77,8 +77,8 @@ class FfmpegRtspStream:
             "ffmpeg",
             "-hide_banner",
             "-loglevel", "warning",
-            "-rtsp_transport", "tcp",
-            "-fflags", "nobuffer",
+            "-rtsp_transport", "udp",
+            "-fflags", "genpts+discardcorrupt",
             "-flags", "low_delay",
             "-i", self.src,
             "-an", "-sn",
@@ -136,15 +136,16 @@ class FfmpegRtspStream:
                 if self.stopped:
                     break
                 logger.error(
-                    "FfmpegRtspStream: short read (%s/%s bytes).",
+                    "FfmpegRtspStream: short read (%s/%s bytes). Stream misaligned. Stopping pipeline.",
                     len(raw),
                     self.frame_bytes,
                 )
                 with self.lock:
                     self.ret = False
                     self.frame = None
-                time.sleep(0.05)
-                continue
+                self.stopped = True
+                self.proc.kill()
+                break
 
             frame = np.frombuffer(raw, dtype=np.uint8).reshape(
                 (self.height, self.width, 3)
