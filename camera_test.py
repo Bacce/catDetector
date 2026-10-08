@@ -9,7 +9,9 @@ from pathlib import Path
 from ultralytics import YOLO
 
 # Configs
-RTSP_URL = "rtsp://192.168.68.72:554/live/ch00_0"
+#RTSP_URL = "rtsp://192.168.68.72:554/live/ch00_0"
+RTSP_URL = "rtsp://192.168.1.100:554/profile1" #720p
+#RTSP_URL = "rtsp://192.168.1.100:554/profile2" #576p
 CAT_DETECTION_THRESHOLD = 0.1
 STARTUP_TIMEOUT = 20.0
 STALL_TIMEOUT = 5.0
